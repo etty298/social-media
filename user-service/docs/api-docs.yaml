@@ -1,0 +1,366 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+paths:
+  /api/v1/users/{userId}/follow:
+    post:
+      tags:
+      - actions-controller
+      operationId: follow
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FollowResultDto"
+  /api/v1/users/me:
+    get:
+      tags:
+      - current-profile-controller
+      operationId: getUser
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProfileDto"
+    patch:
+      tags:
+      - current-profile-controller
+      operationId: changeUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileDto"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProfileDto"
+  /api/v1/users:
+    get:
+      tags:
+      - common-profile-controller
+      operationId: getAllUsers
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: arg1
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseDtoUserDto"
+  /api/v1/users/{userId}/relationship/{targetUserId}:
+    get:
+      tags:
+      - relationship-controller
+      operationId: relationship
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: targetUserId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RelationshipStatusDto"
+  /api/v1/users/{userId}/friends:
+    get:
+      tags:
+      - lists-controller
+      operationId: friends
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: arg1
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseDtoFriendDto"
+  /api/v1/users/{userId}/followings:
+    get:
+      tags:
+      - lists-controller
+      operationId: followings
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: arg1
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseDtoFollowDto"
+  /api/v1/users/{userId}/followers:
+    get:
+      tags:
+      - lists-controller
+      operationId: followers
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: arg1
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseDtoFollowDto"
+  /api/v1/users/{identifier}:
+    get:
+      tags:
+      - common-profile-controller
+      operationId: getUserByIdentifier
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProfileDto"
+  /api/v1/users/{userId}/unfollow:
+    delete:
+      tags:
+      - actions-controller
+      operationId: unfollow
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UnfollowResultDto"
+components:
+  schemas:
+    FollowResultDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+        followerId:
+          type: string
+          format: uuid
+        followingId:
+          type: string
+          format: uuid
+        isMutual:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    UpdateProfileDto:
+      type: object
+      properties:
+        name:
+          type: string
+        bio:
+          type: string
+    ProfileDto:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserDto"
+        stats:
+          $ref: "#/components/schemas/StatsDto"
+    StatsDto:
+      type: object
+      properties:
+        followersCount:
+          type: integer
+          format: int64
+        followingsCount:
+          type: integer
+          format: int64
+        friendsCount:
+          type: integer
+          format: int64
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+        bio:
+          type: string
+    Pageable:
+      type: object
+      properties:
+        page:
+          minimum: 0
+          type: integer
+          format: int32
+        size:
+          minimum: 1
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            type: string
+    PageResponseDtoUserDto:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserDto"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    RelationshipStatusDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        targetUserId:
+          type: string
+          format: uuid
+        isFollowing:
+          type: boolean
+        isFollowedBy:
+          type: boolean
+        isFriend:
+          type: boolean
+    FriendDto:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserDto"
+        friendshipEstablishedAt:
+          type: string
+          format: date-time
+    PageResponseDtoFriendDto:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendDto"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    FollowDto:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserDto"
+        followedAt:
+          type: string
+          format: date-time
+        isMutual:
+          type: boolean
+    PageResponseDtoFollowDto:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/FollowDto"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+    UnfollowResultDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+        unfollowedId:
+          type: string
+          format: uuid
+        wasMutual:
+          type: boolean

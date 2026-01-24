@@ -6,11 +6,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import ru.home.authentication.store.entities.UserEntity;
-import ru.home.authentication.store.repositories.UserRepository;
+import ru.home.authentication.entities.UserEntity;
+import ru.home.authentication.repository.UserRepository;
 
 @Log4j2
-@Component
+//@Component
 @RequiredArgsConstructor
 public class UserEventConsumer {
 
@@ -18,7 +18,7 @@ public class UserEventConsumer {
 
     private final UserRepository userRepository;
 
-    @KafkaListener(topics = "USER_SERVICE", groupId = "consumer")
+    //@KafkaListener(topics = "USER_SERVICE", groupId = "consumer")
     public void consume(String message) {
         try {
             JsonNode event = objectMapper.readTree(message);

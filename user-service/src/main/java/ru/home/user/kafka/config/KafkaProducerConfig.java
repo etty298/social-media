@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class KafkaProducerConfig {
 
-    @Bean
+    //@Bean
     public NewTopic newTopic() {
         return new NewTopic("USER_SERVICE", 1, (short) 1);
     }

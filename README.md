@@ -1,204 +1,659 @@
-# 🌐 Social Media — Прототип социальной сети на микросервисной архитектуре
+# Social Media Platform
 
-## 📖 Описание
+[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.6-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Social Media** — это прототип современной социальной сети, построенной на принципах **микросервисной архитектуры**.  
-Проект демонстрирует взаимодействие между сервисами через **Kafka**, безопасную аутентификацию через **JWT**, а также масштабируемую структуру для будущего развития.
+Масштабируемая платформа социальной сети, построенная на микросервисной архитектуре, демонстрирующая современные паттерны проектирования распределенных систем.
 
-В текущей версии реализованы:
-- 🔐 **Authentication Service** — регистрация, вход, валидация токенов.
-- 👤 **User Service** — профили пользователей, подписки и взаимодействия между ними.
+## Содержание
 
-В будущем планируется добавить сервисы:
-- 📝 **Post Service** — CRUD-постов пользователей.
-- 💬 **Comment Service** — CRUD-комментариев и лайки комментариев.  
-  Асинхронное уведомление Post Service или Notification Service о новых комментариях.
-- 📰 **Feed Service** — генерация персонализированной ленты.  
-  Интеграция с Post и User Service; кэширование в Redis.
-- 🔔 **Notification Service** — асинхронные уведомления о событиях.
+- [Обзор](#обзор)
+- [Архитектура](#архитектура)
+- [Сервисы](#сервисы)
+  - [Authentication Service](#authentication-service)
+  - [User Service](#user-service)
+- [Быстрый старт](#быстрый-старт)
+  - [Требования](#требования)
+  - [Установка](#установка)
+  - [Конфигурация](#конфигурация)
+- [API документация](#api-документация)
+- [Технологический стек](#технологический-стек)
+- [Разработка](#разработка)
+- [Развертывание](#развертывание)
+- [Roadmap](#roadmap)
+- [Лицензия](#лицензия)
 
----
+## Обзор
 
-## 🧩 Архитектура
+Social Media Platform — это распределенное приложение социальной сети корпоративного уровня, демонстрирующее принципы микросервисной архитектуры. Платформа предоставляет основные функции социальных сетей, включая аутентификацию пользователей, управление профилями и социальные связи.
 
-Проект состоит из независимых сервисов, взаимодействующих через **Apache Kafka (KRaft mode)**.  
-Каждый сервис имеет собственную базу данных и отвечает за строго определённую бизнес-область.
+### Ключевые возможности
 
-```text
-┌────────────────────┐        ┌────────────────────┐
-│ Authentication     │        │ User Service       │
-│  • JWT Auth        │◄──────►│  • Профили         │
-│  • Регистрация     │        │  • Подписки        │
-│  • Валидация токен │        │  • Поиск и фильтр  │
-└────────┬───────────┘        └─────────┬──────────┘
-         │ Kafka Event: user_registered │
-         │ Kafka Event: username_changed│
-         ▼                              ▼
-  (другие сервисы в будущем)
+- **Безопасная аутентификация**: JWT-аутентификация с поддержкой refresh токенов
+- **Управление пользователями**: Полноценное управление профилями и социальными связями
+- **Масштабируемая архитектура**: Event-driven микросервисы с асинхронной коммуникацией
+- **База данных на сервис**: Каждый микросервис имеет собственное хранилище данных
+- **API-first дизайн**: RESTful API с OpenAPI документацией
+- **Контейнеризация**: Поддержка Docker и Docker Compose
+
+## Архитектура
+
+Платформа следует принципам микросервисной архитектуры с domain-driven дизайном. Сервисы взаимодействуют через Apache Kafka для event-driven процессов и REST API для синхронных операций.
+
+### Архитектурная диаграмма
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     API Gateway (в планах)                  │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+    ┌─────────▼─────────┐    ┌─────────▼─────────┐
+    │  Authentication   │    │   User Service    │
+    │     Service       │    │                   │
+    │                   │    │  • Профили        │
+    │  • Регистрация    │    │  • Связи          │
+    │  • Вход/Выход     │    │  • Подписки       │
+    │  • JWT токены     │    │  • Поиск          │
+    │  • Валидация      │    │                   │
+    └─────────┬─────────┘    └─────────┬─────────┘
+              │                        │
+              │   ┌────────────────────▼──────────┐
+              └──►│     Apache Kafka              │
+                  │                               │
+                  │  • user_registered            │
+                  │                               │
+                  └───────────────┬───────────────┘
+                                  │
+              ┌───────────────────┴───────────────┐
+              │                                   │
+    ┌─────────▼─────────┐            ┌──────────▼─────────┐
+    │   PostgreSQL      │            │   PostgreSQL       │
+    │   (Auth DB)       │            │   (User DB)        │
+    └───────────────────┘            └────────────────────┘
 ```
 
----
+### Принципы проектирования
 
-## 🔐 Authentication Service
+- **Автономность сервисов**: Каждый сервис независимо развертывается и масштабируется
+- **База данных на сервис**: Устраняет тесную связанность и обеспечивает независимое масштабирование
+- **Event-driven коммуникация**: Асинхронный обмен сообщениями через Kafka для слабой связанности
+- **Паттерн API Gateway**: Централизованная точка входа для клиентских запросов (в планах)
+- **Circuit Breaker**: Паттерны устойчивости для межсервисного взаимодействия (в планах)
 
-Отвечает за регистрацию, аутентификацию и валидацию JWT токенов.
-При регистрации отправляет событие `user_registered` в Kafka для синхронизации с другими сервисами.
+## Сервисы
 
-**Базовый URL:** `http://localhost:8081`
+### Authentication Service
 
-### Эндпоинты
+Authentication Service обрабатывает все операции, связанные с безопасностью, включая регистрацию пользователей, аутентификацию и управление токенами.
 
-| Метод    | Путь                        | Описание                                                                  |
-|----------|-----------------------------|---------------------------------------------------------------------------|
-| **POST** | `/auth/signup`              | Регистрация нового пользователя. Проверяет уникальность email и username. |
-| **POST** | `/auth/signin`              | Вход пользователя, возвращает JWT токен.                                  |
-| **POST** | `/auth/validate-token`      | Проверка валидности токена (используется другими сервисами).              |
-| **POST** | `/settings/change-password` | Смена пароля текущего пользователя.                                       |
+**Порт**: `8081`  
+**База данных**: PostgreSQL (authentication-service)
 
-### Kafka события
+#### Endpoints
 
-* `user_registered` — создаётся после успешной регистрации.
+| Метод  | Endpoint                 | Описание                                     | Аутентификация |
+|--------|--------------------------|----------------------------------------------|----------------|
+| POST   | `/api/v1/auth/register`  | Регистрация нового пользователя              | Публичный      |
+| POST   | `/api/v1/auth/login`     | Аутентификация пользователя и выдача токенов | Публичный      |
+| POST   | `/api/v1/auth/logout`    | Инвалидация текущей сессии                   | Требуется      |
+| POST   | `/api/v1/auth/refresh`   | Обновление access токена через refresh токен | Публичный      |
+| GET    | `/api/v1/token/validate` | Валидация JWT токена (service-to-service)    | N/A            |
+| DELETE | `/api/v1/auth/token`     | Отзыв конкретного токена                     | Требуется      |
+| DELETE | `/api/v1/auth/tokens`    | Отзыв всех токенов пользователя              | Требуется      |
 
----
+#### События (Kafka)
 
-## 👤 User Service
+**Публикуемые события:**
+- `user_registered`: Создается при успешной регистрации нового пользователя
 
-Отвечает за хранение и обработку данных пользователей, их связей и подписок.
-Выполняет валидацию токена, обращаясь к **Authentication Service** через REST.
+#### Технологический стек
 
-**Базовый URL:** `http://localhost:8080/api/users`
-
-### Эндпоинты
-
-| Метод     | Путь                                    | Описание                                                                         |
-|-----------|-----------------------------------------|----------------------------------------------------------------------------------|
-| **GET**   | `/api/users`                            | Получение списка пользователей с фильтрацией по prefix_username или prefix_name. |
-| **GET**   | `/api/users/{username}`                 | Получение профиля пользователя.                                                  |
-| **PATCH** | `/api/users/{username}?action=...`      | Обновление профиля (например, изменение username, name и др.).                   |
-| **POST**  | `/api/users/{username}?action=follow`   | Подписка на пользователя.                                                        |
-| **POST**  | `/api/users/{username}?action=unfollow` | Отписка от пользователя.                                                         |
-| **GET**   | `/api/users/{username}/friends`         | Получение списка друзей пользователя.                                            |
-| **GET**   | `/api/users/{username}/followers`       | Список подписчиков.                                                              |
-| **GET**   | `/api/users/{username}/followings`      | Список подписок.                                                                 |
-
-### Kafka события
-
-* `user_changed_username`
-* `user_deleted_profile`
+- Spring Boot 3.5.6
+- Spring Security
+- Spring Data JPA
+- PostgreSQL
+- Apache Kafka
+- JWT (jjwt 0.13.0)
+- Lombok
 
 ---
 
-## 🔗 Взаимодействие сервисов
+### User Service
 
-### Через Kafka
+User Service управляет профилями пользователей, социальными связями (подписчики, подписки, друзья) и функциями поиска пользователей.
 
-**Authentication → User Service:**
-событие `user_registered` создаёт профиль пользователя в user-service.
+**Порт**: `8080`  
+**База данных**: PostgreSQL (user-service)
 
-**User Service → Authentication:**
-событие `user_changed_username` синхронизирует изменение username.
+#### Endpoints
 
-### Через HTTP
+##### Управление профилем
 
-**User Service → Authentication Service:**
-при каждом запросе с токеном фильтр `TokenValidationFilter` вызывает `/auth/validate-token`.
+| Метод | Endpoint                     | Описание                             | Аутентификация |
+|-------|------------------------------|--------------------------------------|----------------|
+| GET   | `/api/v1/users`              | Поиск пользователей с фильтрами      | Требуется      |
+| GET   | `/api/v1/users/{identifier}` | Получение профиля по ID или username | Требуется      |
+| GET   | `/api/v1/users/me`           | Получение собственного профиля       | Требуется      |
+| PATCH | `/api/v1/users/me`           | Обновление собственного профиля      | Требуется      |
+
+##### Социальные связи
+
+| Метод  | Endpoint                                             | Описание                                        | Аутентификация |
+|--------|------------------------------------------------------|-------------------------------------------------|----------------|
+| POST   | `/api/v1/users/{userId}/follow`                      | Подписаться на пользователя                     | Требуется      |
+| DELETE | `/api/v1/users/{userId}/unfollow`                    | Отписаться от пользователя                      | Требуется      |
+| GET    | `/api/v1/users/{userId}/followers`                   | Получить список подписчиков                     | Требуется      |
+| GET    | `/api/v1/users/{userId}/followings`                  | Получить список подписок                        | Требуется      |
+| GET    | `/api/v1/users/{userId}/friends`                     | Получить список друзей (взаимные подписки)      | Требуется      |
+| GET    | `/api/v1/users/{userId}/relationship/{targetUserId}` | Проверить статус отношений между пользователями | Требуется      |
+
+#### События (Kafka)
+
+**Потребляемые события:**
+- `user_registered`: Создает профиль пользователя в базе user-service
+
+#### Технологический стек
+
+- Spring Boot 3.5.6
+- Spring Security
+- Spring Data JPA
+- PostgreSQL
+- Apache Kafka
+- JWT (jjwt 0.13.0)
+- Lombok
 
 ---
 
-## ⚙️ Запуск проекта
+## Быстрый старт
 
-1. Убедитесь, что **Kafka** и **PostgreSQL** запущены локально.
-2. В `application.yml` каждого сервиса укажите свои настройки БД и Kafka.
-3. Запустите сервисы в порядке:
+### Требования
 
-    * Kafka (KRaft)
-    * authentication-service
-    * user-service
+- **Java Development Kit (JDK)**: Версия 17 или выше
+- **Apache Maven**: Версия 3.8+
+- **Docker**: Версия 20.10+ (для контейнерного развертывания)
+- **Docker Compose**: Версия 2.0+
+- **Git**: Для клонирования репозитория
 
----
+### Установка
 
-## 📡 Примеры HTTP-запросов
+#### Вариант 1: Docker Compose (рекомендуется)
 
-### 🔸 Регистрация пользователя
+1. Клонируйте репозиторий:
+```bash
+git clone https://github.com/etty298/social-media.git
+cd social-media
+```
+
+2. Запустите все сервисы через Docker Compose:
+```bash
+docker-compose up -d
+```
+
+Это запустит:
+- Authentication Service (порт 8081)
+- User Service (порт 8080)
+- PostgreSQL базы данных (порты 5432, 5433)
+- Apache Kafka (порты 9092, 29092)
+
+3. Проверьте, что сервисы запущены:
+```bash
+docker-compose ps
+```
+
+4. Просмотр логов:
+```bash
+docker-compose logs -f [имя-сервиса]
+```
+
+#### Вариант 2: Локальная разработка
+
+1. Клонируйте репозиторий:
+```bash
+git clone https://github.com/etty298/social-media.git
+cd social-media
+```
+
+2. Запустите инфраструктурные сервисы (Kafka и PostgreSQL):
+```bash
+docker-compose up -d authentication-db user-db kafka
+```
+
+3. Соберите проект:
+```bash
+mvn clean install
+```
+
+4. Запустите каждый сервис:
 
 ```bash
-curl -X POST http://localhost:8081/auth/signup \
+# Терминал 1: Authentication Service
+cd authentication-service
+mvn spring-boot:run
+
+# Терминал 2: User Service
+cd user-service
+mvn spring-boot:run
+```
+
+### Конфигурация
+
+Каждый сервис конфигурируется через файл `application.properties` в директории `src/main/resources/`.
+
+#### Конфигурация Authentication Service
+
+```properties
+# Конфигурация сервера
+spring.application.name=authentication-service
+server.port=8081
+
+# Конфигурация базы данных
+spring.datasource.url=jdbc:postgresql://localhost:5432/authentication-service
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA/Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.globally_quoted_identifiers=true
+
+# Конфигурация Kafka
+spring.kafka.bootstrap-servers=localhost:9092
+
+# Конфигурация JWT
+token.access.secret=your-secret-key-change-in-production
+token.access.lifetime=600000
+token.refresh.lifetime=2592000000
+```
+
+#### Конфигурация User Service
+
+```properties
+# Конфигурация сервера
+spring.application.name=user-service
+server.port=8080
+
+# Конфигурация базы данных
+spring.datasource.url=jdbc:postgresql://localhost:5432/user-service
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA/Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.globally_quoted_identifiers=true
+
+# Конфигурация Kafka
+spring.kafka.bootstrap-servers=localhost:9092
+
+# JWT
+token.access.secret=your-secret-key-change-in-production
+```
+
+## API документация
+
+### OpenAPI/Swagger документация
+
+Каждый сервис предоставляет интерактивную API документацию через Swagger UI:
+
+- **Authentication Service**: http://localhost:8081/swagger-ui.html
+- **User Service**: http://localhost:8080/swagger-ui.html
+
+### Примеры API запросов
+
+#### Регистрация нового пользователя
+
+```bash
+curl -X POST http://localhost:8081/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "john_doe",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "password": "password123"
+    "email": "john.doe@example.com",
+    "password": "SecurePassword123!",
+    "name": "John Doe"
   }'
 ```
 
-**Ответ (успешно):**
-
+**Ответ:**
 ```json
 {
-  "id": 1,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "username": "john_doe",
-  "email": "john@example.com",
+  "email": "john.doe@example.com",
   "name": "John Doe"
 }
 ```
 
-### 🔸 Авторизация пользователя
+#### Вход в систему
 
 ```bash
-curl -X POST http://localhost:8081/auth/signin \
+curl -X POST http://localhost:8081/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "john_doe",
-    "password": "password123"
+    "password": "SecurePassword123!"
   }'
 ```
 
-**Ответ (JWT токен):**
-
+**Ответ:**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": 600000
+}
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
 
-### 🔸 Получение профиля пользователя
+*Примечание: Refresh токен возвращается в HTTP-only cookie*
+
+#### Обновление access токена
 
 ```bash
-curl -X GET http://localhost:8082/api/users/john_doe \
-  -H "Authorization: Bearer <JWT_TOKEN>"
+curl -X POST http://localhost:8081/api/v1/auth/refresh \
+  --cookie "refreshToken=your_refresh_token_here"
 ```
 
-### 🔸 Подписка на пользователя
+#### Выход из системы
 
 ```bash
-curl -X POST "http://localhost:8082/api/users/jane_doe?action=follow" \
-  -H "Authorization: Bearer <JWT_TOKEN>"
+curl -X POST http://localhost:8081/api/v1/auth/logout \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### 🔸 Получение списка подписчиков
+#### Получение профиля пользователя
 
 ```bash
-curl -X GET "http://localhost:8082/api/users/john_doe/followers" \
-  -H "Authorization: Bearer <JWT_TOKEN>"
+curl -X GET http://localhost:8080/api/v1/users/john_doe \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
+
+**Ответ:**
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "john_doe",
+  "name": "John Doe",
+  "bio": "Software Engineer",
+  "stats": {
+    "followersCount": 150,
+    "followingCount": 200,
+    "friendsCount": 75
+  }
+}
+```
+
+#### Получение собственного профиля
+
+```bash
+curl -X GET http://localhost:8080/api/v1/users/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+#### Обновление собственного профиля
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/users/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Smith",
+    "bio": "Senior Software Engineer"
+  }'
+```
+
+#### Подписка на пользователя
+
+```bash
+curl -X POST http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440001/follow \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Ответ:**
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440001",
+  "username": "jane_doe",
+  "isFollowing": true,
+  "isFriend": false
+}
+```
+
+#### Отписка от пользователя
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440001/unfollow \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+#### Получение списка подписчиков
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440000/followers?page=0&size=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Ответ:**
+```json
+{
+  "content": [
+    {
+      "userId": "550e8400-e29b-41d4-a716-446655440001",
+      "username": "jane_doe",
+      "name": "Jane Doe",
+      "isFriend": true
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 150,
+  "totalPages": 8
+}
+```
+
+#### Получение списка подписок
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440000/followings?page=0&size=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+#### Получение списка друзей
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440000/friends?page=0&size=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+#### Проверка статуса отношений
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440000/relationship/550e8400-e29b-41d4-a716-446655440001" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Ответ:**
+```json
+{
+  "isFollowing": true,
+  "isFollower": false,
+  "isFriend": false
+}
+```
+
+#### Поиск пользователей
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/users?q=john&page=0&size=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Ответ:**
+```json
+{
+  "content": [
+    {
+      "userId": "550e8400-e29b-41d4-a716-446655440000",
+      "username": "john_doe",
+      "name": "John Doe"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+## Технологический стек
+
+### Backend Framework
+- **Spring Boot 3.5.6**: Основной фреймворк
+- **Spring Security**: Аутентификация и авторизация
+- **Spring Data JPA**: Слой персистентности данных
+- **Spring Kafka**: Event streaming
+
+### Базы данных
+- **PostgreSQL 18.1**: Основное хранилище данных для всех сервисов
+
+### Message Broker
+- **Apache Kafka 8.1.1**: Платформа event streaming
+
+### Безопасность
+- **JWT (JSON Web Tokens)**: Stateless аутентификация
+- **jjwt 0.13.0**: Библиотека реализации JWT
+
+### API документация
+- **SpringDoc OpenAPI 2.7.0**: Документация и тестирование API
+
+### Инструменты разработки
+- **Lombok**: Уменьшение boilerplate кода
+- **Maven**: Сборка и управление зависимостями
+- **Docker**: Контейнеризация
+- **Docker Compose**: Оркестрация мульти-контейнерных приложений
+
+### Тестирование
+- **JUnit 5**: Фреймворк для unit-тестирования
+- **Spring Boot Test**: Интеграционное тестирование
+
+## Разработка
+
+### Структура проекта
+
+```
+social-media/
+├── authentication-service/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/
+│   │   │   │   └── ru/home/authentication/
+│   │   │   │       ├── config/
+│   │   │   │       ├── controller/
+│   │   │   │       ├── dto/
+│   │   │   │       ├── entities/
+│   │   │   │       ├── exception/
+│   │   │   │       ├── factory/
+│   │   │   │       ├── kafka/
+│   │   │   │       ├── repository/
+│   │   │   │       ├── security/
+│   │   │   │       └── service/
+│   │   │   └── resources/
+│   │   │       └── application.properties
+│   │   └── test/
+│   ├── Dockerfile
+│   └── pom.xml
+├── user-service/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/
+│   │   │   │   └── ru/home/user/
+│   │   │   │       ├── config/
+│   │   │   │       ├── controller/
+│   │   │   │       ├── dto/
+│   │   │   │       ├── entities/
+│   │   │   │       ├── exceptions/
+│   │   │   │       ├── kafka/
+│   │   │   │       ├── mapper/
+│   │   │   │       ├── repositories/
+│   │   │   │       ├── security/
+│   │   │   │       └── service/
+│   │   │   └── resources/
+│   │   │       └── application.properties
+│   │   └── test/
+│   ├── Dockerfile
+│   └── pom.xml
+├── docker-compose.yaml
+├── pom.xml
+└── README.md
+```
+
+### Сборка из исходников
+
+```bash
+# Сборка всех сервисов
+mvn clean package
+
+# Сборка конкретного сервиса
+cd authentication-service
+mvn clean package
+
+# Пропуск тестов
+mvn clean package -DskipTests
+
+# Только запуск тестов
+mvn test
+```
+
+### Запуск тестов
+
+```bash
+# Запуск всех тестов
+mvn test
+
+# Запуск тестов для конкретного сервиса
+cd user-service
+mvn test
+```
+
+## Roadmap
+
+### Версия 1.1.0 (Q1 2026)
+- [ ] Реализация Token Blacklist
+- [ ] Валидация входных данных на всех DTO
+- [ ] Функционал сброса пароля
+- [ ] Сервис верификации email
+- [ ] Admin endpoints для управления пользователями
+
+### Версия 1.2.0 (Q2 2026)
+- [ ] **Post Service** с CRUD операциями для постов
+- [ ] Feed Service с персонализированным контентом
+- [ ] Comment Service с вложенными комментариями
+- [ ] Система лайков/реакций
+- [ ] Redis кэширование
+- [ ] Real-time уведомления через WebSocket
+
+### Версия 2.0.0 (Q3 2026)
+- [ ] API Gateway с rate limiting
+- [ ] Service mesh (Istio)
+- [ ] Kubernetes deployment манифесты
+- [ ] CI/CD pipeline
+- [ ] Comprehensive мониторинг и логирование
+- [ ] Оптимизация производительности
+
+### Будущие улучшения
+- [ ] Media Service для загрузки изображений/видео
+- [ ] Search Service с Elasticsearch
+- [ ] Analytics Service
+- [ ] API для мобильных приложений
+- [ ] Поддержка GraphQL API
+- [ ] Мультиязычная поддержка
+
+## Лицензия
+
+Этот проект лицензирован под MIT License - см. файл [LICENSE](LICENSE) для деталей.
 
 ---
 
-## 🧩 Используемые технологии
+**Создано etty298**
 
-* **Spring Boot 3** (Web, Security, JPA)
-* **PostgreSQL** — основная база данных
-* **Kafka** — обмен событиями между сервисами
-* **Docker** (в планах)
-* **JWT** — аутентификация и авторизация
-* **Lombok**, **MapStruct**, **FeignClient** — удобство и чистота кода
-
----
-
-## 🔮 Планы на будущее
-
-* ✅ Реализовать **Refresh Token** для обновления JWT.
-* 📝 Добавить **Post Service** с CRUD постов.
-* 💬 Добавить **Comment Service** и лайки комментариев.
-* 📰 Разработать **Feed Service** с кэшированием ленты.
-* 🔔 Добавить **Notification Service** с асинхронной отправкой уведомлений.
-* 🐳 Создать **Dockerfile** и **docker-compose.yml** для автоматического запуска стека.
+[⬆ Наверх](#social-media-platform)

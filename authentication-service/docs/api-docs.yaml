@@ -1,0 +1,185 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://localhost:8081
+  description: Generated server url
+paths:
+  /api/v1/auth/register:
+    post:
+      tags:
+      - access-controller
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDto"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserDto"
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - access-controller
+      operationId: refresh
+      parameters:
+      - name: refreshToken
+        in: cookie
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TokenResponseDto"
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - access-controller
+      operationId: logout
+      parameters:
+      - name: Authorization
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/auth/login:
+    post:
+      tags:
+      - access-controller
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginDto"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TokenResponseDto"
+  /api/v1/token/validate:
+    get:
+      tags:
+      - token-controller
+      operationId: validate
+      parameters:
+      - name: Authorization
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TokenValidationDto"
+  /api/v1/auth/tokens:
+    delete:
+      tags:
+      - token-controller
+      operationId: revokeAll
+      parameters:
+      - name: refreshToken
+        in: cookie
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+  /api/v1/auth/token:
+    delete:
+      tags:
+      - token-controller
+      operationId: revoke
+      parameters:
+      - name: refreshToken
+        in: cookie
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+components:
+  schemas:
+    RegisterDto:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+          - USER
+          - ADMIN
+        enabled:
+          type: boolean
+    TokenResponseDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        accessToken:
+          type: string
+        expiration:
+          type: string
+          format: date-time
+    LoginDto:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    TokenValidationDto:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+          - USER
+          - ADMIN
+        email:
+          type: string
