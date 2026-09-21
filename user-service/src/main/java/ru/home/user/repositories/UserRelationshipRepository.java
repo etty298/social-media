@@ -13,7 +13,7 @@ import ru.home.user.entities.UserRelationshipEntity;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface UserRelationshipRepository extends JpaRepository<UserRelationshipEntity, UUID> {
+public interface UserRelationshipRepository extends JpaRepository<UserRelationshipEntity, Long> {
 
     boolean existsByFollowerIdAndFollowingId(UUID followerId, UUID followingId);
 

@@ -10,11 +10,10 @@ services:
     depends_on:
       - authentication-db
       - kafka
+      - redis
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://authentication-db:5432/authentication-service
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    labels:
-      amplicode.image: springboot
 
   user-service:
     image: user-service:latest
@@ -27,11 +26,10 @@ services:
     depends_on:
       - user-db
       - kafka
+      - redis
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/user-service
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    labels:
-      amplicode.image: springboot
 
   authentication-db:
     image: postgres:18.1
@@ -68,6 +66,21 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 5
+  redis:
+    container_name: redis
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: postgres
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
   kafka:
     image: confluentinc/cp-kafka:8.1.1
     restart: "no"
@@ -99,3 +112,4 @@ volumes:
   postgres_data:
   postgres-2_data:
   kafka_data:
+  redis_data:

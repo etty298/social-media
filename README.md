@@ -20,7 +20,6 @@
 - [API документация](#api-документация)
 - [Технологический стек](#технологический-стек)
 - [Разработка](#разработка)
-- [Развертывание](#развертывание)
 - [Roadmap](#roadmap)
 - [Лицензия](#лицензия)
 
@@ -100,9 +99,9 @@ Authentication Service обрабатывает все операции, свя�
 | POST   | `/api/v1/auth/login`     | Аутентификация пользователя и выдача токенов | Публичный      |
 | POST   | `/api/v1/auth/logout`    | Инвалидация текущей сессии                   | Требуется      |
 | POST   | `/api/v1/auth/refresh`   | Обновление access токена через refresh токен | Публичный      |
-| GET    | `/api/v1/token/validate` | Валидация JWT токена (service-to-service)    | N/A            |
-| DELETE | `/api/v1/auth/token`     | Отзыв конкретного токена                     | Требуется      |
-| DELETE | `/api/v1/auth/tokens`    | Отзыв всех токенов пользователя              | Требуется      |
+| GET    | `/api/v1/token/validate` | Валидация JWT токена (service-to-service)    | Публичный      |
+| DELETE | `/api/v1/auth/token`     | Отзыв конкретного токена                     | Публичный      |
+| DELETE | `/api/v1/auth/tokens`    | Отзыв всех токенов пользователя              | Публичный      |
 
 #### События (Kafka)
 
@@ -115,6 +114,7 @@ Authentication Service обрабатывает все операции, свя�
 - Spring Security
 - Spring Data JPA
 - PostgreSQL
+- Redis
 - Apache Kafka
 - JWT (jjwt 0.13.0)
 - Lombok
@@ -134,8 +134,8 @@ User Service управляет профилями пользователей, �
 
 | Метод | Endpoint                     | Описание                             | Аутентификация |
 |-------|------------------------------|--------------------------------------|----------------|
-| GET   | `/api/v1/users`              | Поиск пользователей с фильтрами      | Требуется      |
-| GET   | `/api/v1/users/{identifier}` | Получение профиля по ID или username | Требуется      |
+| GET   | `/api/v1/users`              | Поиск пользователей с фильтрами      | Публичный      |
+| GET   | `/api/v1/users/{identifier}` | Получение профиля по ID или username | Публичный      |
 | GET   | `/api/v1/users/me`           | Получение собственного профиля       | Требуется      |
 | PATCH | `/api/v1/users/me`           | Обновление собственного профиля      | Требуется      |
 
@@ -145,10 +145,10 @@ User Service управляет профилями пользователей, �
 |--------|------------------------------------------------------|-------------------------------------------------|----------------|
 | POST   | `/api/v1/users/{userId}/follow`                      | Подписаться на пользователя                     | Требуется      |
 | DELETE | `/api/v1/users/{userId}/unfollow`                    | Отписаться от пользователя                      | Требуется      |
-| GET    | `/api/v1/users/{userId}/followers`                   | Получить список подписчиков                     | Требуется      |
-| GET    | `/api/v1/users/{userId}/followings`                  | Получить список подписок                        | Требуется      |
-| GET    | `/api/v1/users/{userId}/friends`                     | Получить список друзей (взаимные подписки)      | Требуется      |
-| GET    | `/api/v1/users/{userId}/relationship/{targetUserId}` | Проверить статус отношений между пользователями | Требуется      |
+| GET    | `/api/v1/users/{userId}/followers`                   | Получить список подписчиков                     | Публичный      |
+| GET    | `/api/v1/users/{userId}/followings`                  | Получить список подписок                        | Публичный      |
+| GET    | `/api/v1/users/{userId}/friends`                     | Получить список друзей (взаимные подписки)      | Публичный      |
+| GET    | `/api/v1/users/{userId}/relationship/{targetUserId}` | Проверить статус отношений между пользователями | Публичный      |
 
 #### События (Kafka)
 
@@ -161,6 +161,7 @@ User Service управляет профилями пользователей, �
 - Spring Security
 - Spring Data JPA
 - PostgreSQL
+- Redis
 - Apache Kafka
 - JWT (jjwt 0.13.0)
 - Lombok
@@ -196,6 +197,7 @@ docker-compose up -d
 - Authentication Service (порт 8081)
 - User Service (порт 8080)
 - PostgreSQL базы данных (порты 5432, 5433)
+- Redis базу данных (порт 6379)
 - Apache Kafka (порты 9092, 29092)
 
 3. Проверьте, что сервисы запущены:
@@ -218,7 +220,7 @@ cd social-media
 
 2. Запустите инфраструктурные сервисы (Kafka и PostgreSQL):
 ```bash
-docker-compose up -d authentication-db user-db kafka
+docker-compose up -d authentication-db user-db kafka redis
 ```
 
 3. Соберите проект:
@@ -250,10 +252,16 @@ spring.application.name=authentication-service
 server.port=8081
 
 # Конфигурация базы данных
-spring.datasource.url=jdbc:postgresql://localhost:5432/authentication-service
-spring.datasource.username=postgres
-spring.datasource.password=postgres
+spring.datasource.url=${SPRING_DATASOURCE_URL}
+spring.datasource.username=${POSTGRES_USERNAME}
+spring.datasource.password=${POSTGRES_PASSWORD}
 spring.datasource.driver-class-name=org.postgresql.Driver
+
+# Конфигурация Redis
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+spring.data.redis.timeout=60000
+spring.data.redis.password=${REDIS_PASSWORD}
 
 # JPA/Hibernate
 spring.jpa.hibernate.ddl-auto=update
@@ -263,9 +271,9 @@ spring.jpa.properties.hibernate.globally_quoted_identifiers=true
 spring.kafka.bootstrap-servers=localhost:9092
 
 # Конфигурация JWT
-token.access.secret=your-secret-key-change-in-production
-token.access.lifetime=600000
-token.refresh.lifetime=2592000000
+token.access.secret=${ACCESS_TOKEN_SECRET}
+token.access.lifetime=${ACCESS_TOKEN_LIFETIME}
+token.refresh.lifetime=${REFRESH_TOKEN_LIFETIME}
 ```
 
 #### Конфигурация User Service
@@ -276,10 +284,16 @@ spring.application.name=user-service
 server.port=8080
 
 # Конфигурация базы данных
-spring.datasource.url=jdbc:postgresql://localhost:5432/user-service
-spring.datasource.username=postgres
-spring.datasource.password=postgres
+spring.datasource.url=${SPRING_DATASOURCE_URL}
+spring.datasource.username=${POSTGRES_USERNAME}
+spring.datasource.password=${POSTGRES_PASSWORD}
 spring.datasource.driver-class-name=org.postgresql.Driver
+
+# Конфигурация Redis
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+spring.data.redis.timeout=60000
+spring.data.redis.password=${REDIS_PASSWORD}
 
 # JPA/Hibernate
 spring.jpa.hibernate.ddl-auto=update
@@ -289,7 +303,7 @@ spring.jpa.properties.hibernate.globally_quoted_identifiers=true
 spring.kafka.bootstrap-servers=localhost:9092
 
 # JWT
-token.access.secret=your-secret-key-change-in-production
+token.access.secret=${ACCESS_TOKEN_SECRET}
 ```
 
 ## API документация
@@ -515,6 +529,7 @@ curl -X GET "http://localhost:8080/api/v1/users?q=john&page=0&size=20" \
 
 ### Базы данных
 - **PostgreSQL 18.1**: Основное хранилище данных для всех сервисов
+- **Redis**: Используется для хранения jwt токенов после выхода (token blacklist)
 
 ### Message Broker
 - **Apache Kafka 8.1.1**: Платформа event streaming
@@ -532,9 +547,6 @@ curl -X GET "http://localhost:8080/api/v1/users?q=john&page=0&size=20" \
 - **Docker**: Контейнеризация
 - **Docker Compose**: Оркестрация мульти-контейнерных приложений
 
-### Тестирование
-- **JUnit 5**: Фреймворк для unit-тестирования
-- **Spring Boot Test**: Интеграционное тестирование
 
 ## Разработка
 
@@ -604,24 +616,14 @@ mvn clean package -DskipTests
 mvn test
 ```
 
-### Запуск тестов
-
-```bash
-# Запуск всех тестов
-mvn test
-
-# Запуск тестов для конкретного сервиса
-cd user-service
-mvn test
-```
 
 ## Roadmap
 
 ### Версия 1.1.0 (Q1 2026)
-- [ ] Реализация Token Blacklist
+- [x] Реализация Token Blacklist
 - [ ] Валидация входных данных на всех DTO
 - [ ] Функционал сброса пароля
-- [ ] Сервис верификации email
+- [ ] Transactional Outbox
 - [ ] Admin endpoints для управления пользователями
 
 ### Версия 1.2.0 (Q2 2026)

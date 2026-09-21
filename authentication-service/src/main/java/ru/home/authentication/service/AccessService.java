@@ -1,6 +1,7 @@
 package ru.home.authentication.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -28,7 +29,9 @@ import ru.home.authentication.repository.UserRepository;
 import ru.home.authentication.security.jwt.JwtToken;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Transactional
@@ -43,6 +46,7 @@ public class AccessService {
     private final UserDtoFactory userDtoFactory;
     private final RefreshTokenService refreshTokenService;
     private final UserEventProducer userEventProducer;
+    private final StringRedisTemplate redisTemplate;
 
     public ResponseEntity<UserDto> register(RegisterDto registerDto) {
         if (userRepository.existsByUsername(registerDto.username())) {
@@ -98,7 +102,7 @@ public class AccessService {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(new TokenResponseDto(user.getId(), accessToken, jwtToken.getExpiration(accessToken)));
+                .body(new TokenResponseDto(user.getId(), accessToken, jwtToken.getJti(accessToken), jwtToken.getExpiration(accessToken)));
     }
 
     public ResponseEntity<Void> logout(String authHeader) {
@@ -107,6 +111,11 @@ public class AccessService {
 
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("User not found"));
+
+        redisTemplate.opsForValue().set("blacklist:" + jwtToken.getJti(accessToken),
+                "revoked",
+                Duration.between(Instant.now(), jwtToken.getExpiration(accessToken)).toMillis(),
+                TimeUnit.MILLISECONDS);
 
         refreshTokenService.revokeAll(user);
 
@@ -130,6 +139,6 @@ public class AccessService {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(new TokenResponseDto(refreshTokenEntity.getUser().getId(), accessToken, jwtToken.getExpiration(accessToken)));
+                .body(new TokenResponseDto(refreshTokenEntity.getUser().getId(), accessToken, jwtToken.getJti(accessToken), jwtToken.getExpiration(accessToken)));
     }
 }

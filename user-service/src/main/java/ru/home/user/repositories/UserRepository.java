@@ -8,7 +8,6 @@ import ru.home.user.entities.UserEntity;
 
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 @Repository
 public interface UserRepository extends JpaRepository<UserEntity, UUID> {
@@ -19,4 +18,5 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     Page<UserEntity> findAllBy(Pageable pageable);
 
+    Page<UserEntity> findAllByNameStartsWithIgnoreCase(String name, Pageable pageable);
 }

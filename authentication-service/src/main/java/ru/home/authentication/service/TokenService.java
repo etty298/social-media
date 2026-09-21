@@ -28,7 +28,7 @@ public class TokenService {
     public ResponseEntity<TokenValidationDto> validate(String authHeader) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.ok(new TokenValidationDto(false, null, null, null, null));
+                return ResponseEntity.ok(new TokenValidationDto(false, null, null, null, null, null));
             }
 
             String token = authHeader.substring(7);
@@ -38,13 +38,13 @@ public class TokenService {
                     .orElse(null);
 
             if (user == null) {
-                return ResponseEntity.ok(new TokenValidationDto(false, null, null, null, null));
+                return ResponseEntity.ok(new TokenValidationDto(false, null, null, null, null, null));
             }
 
-            return ResponseEntity.ok(new TokenValidationDto(true, user.getId(), user.getUsername(), user.getRole(), user.getEmail()));
+            return ResponseEntity.ok(new TokenValidationDto(true, user.getId(), jwtToken.getJti(token), user.getUsername(), user.getRole(), user.getEmail()));
 
         } catch (Exception e) {
-            return ResponseEntity.ok(new TokenValidationDto(false, null, null, null, null));
+            return ResponseEntity.ok(new TokenValidationDto(false, null, null, null, null, null));
         }
     }
 

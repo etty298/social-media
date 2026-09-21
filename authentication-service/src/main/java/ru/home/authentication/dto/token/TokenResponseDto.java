@@ -6,6 +6,7 @@ import java.util.UUID;
 public record TokenResponseDto(
         UUID userId,
         String accessToken,
+        String jti,
         Instant expiration
 
 ) {}

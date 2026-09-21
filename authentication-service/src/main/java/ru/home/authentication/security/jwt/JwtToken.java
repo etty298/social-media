@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import ru.home.authentication.entities.Role;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 public class JwtToken {
 
     @Value("${token.access.secret}")
@@ -32,9 +34,11 @@ public class JwtToken {
     public String generateToken(UserEntity user) {
         Instant expireInstant = Instant.now().plusMillis(Long.parseLong(lifetime));
         Date expireDate = Date.from(expireInstant);
+        String jti = UUID.randomUUID().toString();
+
         return Jwts.builder()
                 .subject(user.getId().toString())
-                .claims(Map.of("role", user.getRole()))
+                .claims(Map.of("role", user.getRole(), "jti", jti))
                 .issuedAt(new Date())
                 .expiration(expireDate)
                 .signWith(getSecret(), Jwts.SIG.HS256)
@@ -54,13 +58,8 @@ public class JwtToken {
         return role == null ? null : Role.valueOf(role.toString());
     }
 
-    public boolean validate(String token) {
-        try {
-            getAllClaims(token);
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
+    public String getJti(String token) {
+        return getAllClaims(token).get("jti").toString();
     }
 
     private Claims getAllClaims(String token) {

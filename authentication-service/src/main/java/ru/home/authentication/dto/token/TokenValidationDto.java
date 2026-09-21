@@ -4,4 +4,4 @@ import ru.home.authentication.entities.Role;
 
 import java.util.UUID;
 
-public record TokenValidationDto(boolean valid, UUID id, String username, Role role, String email) {}
+public record TokenValidationDto(boolean valid, UUID id, String jti, String username, Role role, String email) {}

@@ -30,8 +30,18 @@ public class CommonProfileService {
     public ResponseEntity<PageResponseDto<UserDto>> getAllUsers(Optional<String> q, Pageable pageable) {
 
         Page<UserEntity> page = q
-                .filter(username -> !username.trim().isEmpty())
-                .map(username -> userRepository.findAllByUsernameStartsWithIgnoreCase(username, pageable))
+                .filter(value -> !value.trim().isEmpty())
+                .map(value -> {
+                    Page<UserEntity> result =
+                            userRepository.findAllByUsernameStartsWithIgnoreCase(value, pageable);
+
+                    if (!result.hasContent()) {
+                        result = userRepository.findAllByNameStartsWithIgnoreCase(value, pageable);
+                    }
+
+                    return result;
+                })
+                .filter(Page::hasContent)
                 .orElseGet(() -> userRepository.findAllBy(pageable));
 
         List<UserDto> content = page.getContent().stream()

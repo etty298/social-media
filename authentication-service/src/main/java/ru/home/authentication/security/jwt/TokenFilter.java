@@ -6,6 +6,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import ru.home.authentication.security.CustomUserDetailsService;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.util.UUID;
 
 @Component
@@ -22,10 +25,12 @@ public class TokenFilter extends OncePerRequestFilter {
 
     private final JwtToken jwtToken;
 
+    private final StringRedisTemplate redisTemplate;
+
     private final CustomUserDetailsService customUserDetailsService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String jwt = null;
         UUID userId = null;
@@ -37,6 +42,11 @@ public class TokenFilter extends OncePerRequestFilter {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 jwt = authHeader.substring(7);
             }
+
+            if (redisTemplate.hasKey("blacklist:" + jwtToken.getJti(jwt))) {
+                throw new AccessDeniedException("Your session is expired");
+            }
+
             if (jwt != null) {
                 try {
                     userId = jwtToken.getUserId(jwt);
