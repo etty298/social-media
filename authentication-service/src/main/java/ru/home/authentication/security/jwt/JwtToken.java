@@ -46,7 +46,11 @@ public class JwtToken {
     }
 
     public UUID getUserId(String token) {
-        return UUID.fromString(getAllClaims(token).getSubject());
+        String subject = getAllClaims(token).getSubject();
+        if (subject == null) {
+            throw new IllegalArgumentException("Token has no subject");
+        }
+        return UUID.fromString(subject);
     }
 
     public Instant getExpiration(String token) {

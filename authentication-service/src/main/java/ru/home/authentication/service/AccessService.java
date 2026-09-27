@@ -1,6 +1,8 @@
 package ru.home.authentication.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,7 @@ import ru.home.authentication.entities.Role;
 import ru.home.authentication.entities.UserEntity;
 import ru.home.authentication.exception.BadRequestException;
 import ru.home.authentication.exception.NotFoundException;
+import ru.home.authentication.exception.ServiceUnavailableException;
 import ru.home.authentication.factory.UserDtoFactory;
 import ru.home.authentication.kafka.producer.UserEventProducer;
 import ru.home.authentication.repository.UserRepository;
@@ -34,6 +37,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 @Transactional
 @RequiredArgsConstructor
 public class AccessService {
@@ -112,10 +116,15 @@ public class AccessService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
-        redisTemplate.opsForValue().set("blacklist:" + jwtToken.getJti(accessToken),
-                "revoked",
-                Duration.between(Instant.now(), jwtToken.getExpiration(accessToken)).toMillis(),
-                TimeUnit.MILLISECONDS);
+        try {
+            redisTemplate.opsForValue().set("blacklist:" + jwtToken.getJti(accessToken),
+                    "revoked",
+                    Duration.between(Instant.now(), jwtToken.getExpiration(accessToken)).toMillis(),
+                    TimeUnit.MILLISECONDS);
+        } catch (RedisConnectionFailureException e) {
+            log.error("Cannot blacklist token: Redis unavailable. userId={}", userId, e);
+            throw new ServiceUnavailableException("Logout unavailable, try again later");
+        }
 
         refreshTokenService.revokeAll(user);
 
