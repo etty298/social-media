@@ -2,7 +2,6 @@ package ru.home.authentication.security.jwt;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import io.lettuce.core.RedisConnectionException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,16 +11,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import ru.home.authentication.security.CustomUserDetailsService;
 
 import java.io.IOException;
-import java.net.ConnectException;
 import java.util.UUID;
 
 @Component
@@ -34,6 +34,8 @@ public class TokenFilter extends OncePerRequestFilter {
     private final StringRedisTemplate redisTemplate;
 
     private final CustomUserDetailsService customUserDetailsService;
+
+    private final AuthenticationEntryPoint authenticationEntryPoint;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -60,8 +62,10 @@ public class TokenFilter extends OncePerRequestFilter {
 
             if (isTokenBlacklisted(jti)) {
                 log.info("Rejected blacklisted token: jti={}", jti);
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Session is expired");
+                authenticationEntryPoint.commence(
+                        request, response,
+                        new BadCredentialsException("Token has been revoked")
+                );
                 return;
             }
 
@@ -74,16 +78,28 @@ public class TokenFilter extends OncePerRequestFilter {
             log.debug("Authenticated user: userId={}, jti={}", userId, jti);
 
         } catch (ExpiredJwtException e) {
-            log.debug("JWT expired: {}", e.getMessage());
+            log.warn("JWT expired: {}", e.getMessage());
+            authenticationEntryPoint.commence(
+                    request, response,
+                    new BadCredentialsException("Token has been expired")
+            );
+            return;
 
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("Invalid JWT: {}", e.getMessage());
+            authenticationEntryPoint.commence(
+                    request, response,
+                    new BadCredentialsException("Token is invalid")
+            );
+            return;
 
         } catch (UsernameNotFoundException e) {
             log.warn("User not found for valid token: {}", e.getMessage());
-
-        } catch (Exception e) {
-            log.error("Unexpected error during authentication", e);
+            authenticationEntryPoint.commence(
+                    request, response,
+                    new BadCredentialsException("There is no user with this token")
+            );
+            return;
         }
 
         filterChain.doFilter(request, response);
