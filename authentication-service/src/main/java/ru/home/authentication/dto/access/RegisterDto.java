@@ -1,3 +1,19 @@
 package ru.home.authentication.dto.access;
 
-public record RegisterDto(String username, String email, String password) {}
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record RegisterDto(
+        @Size(min = 4, message = "Username should be more than 4 symbols")
+        @NotBlank(message = "Username can not be blank")
+        String username,
+
+        @Email
+        @NotBlank(message = "Email can not be blank")
+        String email,
+
+        @Size(min = 6, message = "Password should be more than 6 symbols")
+        @NotBlank(message = "Password can not be blank")
+        String password
+) {}

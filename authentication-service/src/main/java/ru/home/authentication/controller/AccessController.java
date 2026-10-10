@@ -1,5 +1,6 @@
 package ru.home.authentication.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,12 +17,12 @@ public class AccessController {
     private final AccessService accessService;
 
     @PostMapping("/api/v1/auth/register")
-    public ResponseEntity<UserDto> register(@RequestBody RegisterDto registerDto) {
+    public ResponseEntity<UserDto> register(@Valid@RequestBody RegisterDto registerDto) {
         return accessService.register(registerDto);
     }
 
     @PostMapping("/api/v1/auth/login")
-    public ResponseEntity<TokenResponseDto> login(@RequestBody LoginDto loginDto) {
+    public ResponseEntity<TokenResponseDto> login(@Valid @RequestBody LoginDto loginDto) {
         return accessService.login(loginDto);
     }
 
