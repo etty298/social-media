@@ -74,6 +74,26 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/TokenResponseDto"
+  /api/v1/security/change-password:
+    patch:
+      tags:
+      - security-controller
+      operationId: changePassword
+      parameters:
+      - name: Authorization
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChangeDto"
+        required: true
+      responses:
+        "200":
+          description: OK
   /api/v1/token/validate:
     get:
       tags:
@@ -123,13 +143,21 @@ paths:
 components:
   schemas:
     RegisterDto:
+      required:
+      - email
+      - password
+      - username
       type: object
       properties:
         username:
+          maxLength: 2147483647
+          minLength: 4
           type: string
         email:
           type: string
         password:
+          maxLength: 2147483647
+          minLength: 6
           type: string
     UserDto:
       type: object
@@ -156,15 +184,38 @@ components:
           format: uuid
         accessToken:
           type: string
+        jti:
+          type: string
         expiration:
           type: string
           format: date-time
     LoginDto:
+      required:
+      - password
+      - username
       type: object
       properties:
         username:
+          maxLength: 2147483647
+          minLength: 4
           type: string
         password:
+          maxLength: 2147483647
+          minLength: 6
+          type: string
+    PasswordChangeDto:
+      required:
+      - newPassword
+      - oldPassword
+      type: object
+      properties:
+        oldPassword:
+          maxLength: 2147483647
+          minLength: 6
+          type: string
+        newPassword:
+          maxLength: 2147483647
+          minLength: 6
           type: string
     TokenValidationDto:
       type: object
@@ -174,6 +225,8 @@ components:
         id:
           type: string
           format: uuid
+        jti:
+          type: string
         username:
           type: string
         role:

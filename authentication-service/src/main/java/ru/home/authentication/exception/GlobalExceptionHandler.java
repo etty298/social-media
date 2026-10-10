@@ -1,30 +1,33 @@
 package ru.home.authentication.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ErrorDto> handleNotFound(NotFoundException ex) {
-        log.error("Exception during execution of application", ex);
+        log.warn("Exception during execution of application", ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorDto("NOT_FOUND", ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorDto> handleAccess(AccessDeniedException ex) {
-        log.error("Exception during execution of application", ex);
+        log.warn("Exception during execution of application", ex);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ErrorDto("FORBIDDEN", ex.getMessage()));
     }
@@ -40,16 +43,34 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorDto> handleIllegal(IllegalArgumentException ex) {
-        log.error("Exception during execution of application", ex);
+        log.warn("Exception during execution of application", ex);
+        return ResponseEntity.badRequest()
+                .body(new ErrorDto("BAD_REQUEST", ex.getMessage()));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorDto> handleBadRequest(BadRequestException ex) {
+        log.warn("Exception during execution of application", ex);
         return ResponseEntity.badRequest()
                 .body(new ErrorDto("BAD_REQUEST", ex.getMessage()));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorDto> handleBadCredentials(BadCredentialsException ex) {
-        log.error("Exception during execution of application", ex);
+        log.warn("Exception during execution of application", ex);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorDto("UNAUTHORIZED", "Неверные учётные данные"));
+                .body(new ErrorDto("UNAUTHORIZED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InsufficientAuthenticationException.class)
+    public ResponseEntity<ErrorDto> handleInsufficientAuth(InsufficientAuthenticationException ex,
+                                                           HttpServletRequest request) {
+        boolean hasToken = request.getHeader("Authorization") != null;
+        String message = hasToken
+                ? ex.getMessage()
+                : "Authentication token is missing";
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorDto("UNAUTHORIZED", message));
     }
 
     @ExceptionHandler(Exception.class)
